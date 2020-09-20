@@ -11,6 +11,7 @@ use crate::util::errors::CargoResult;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 /// Parse the `-Zbuild-std` flag.
 pub fn parse_unstable_flag(value: Option<&str>) -> Vec<String> {
@@ -60,17 +61,13 @@ pub fn resolve_std<'cfg>(
         String::from("library/alloc"),
         String::from("library/test"),
     ];
-    let ws_config = crate::core::WorkspaceConfig::Root(crate::core::WorkspaceRootConfig::new(
-        &src_path,
-        &Some(members),
-        /*default_members*/ &None,
-        /*exclude*/ &None,
-        /*custom_metadata*/ &None,
-    ));
+    let ws_config = crate::core::WorkspaceConfig::Root(
+        crate::core::WorkspaceRootConfig::from_members(&src_path, members),
+    );
     let virtual_manifest = crate::core::VirtualManifest::new(
         /*replace*/ Vec::new(),
         patch,
-        ws_config,
+        Rc::new(ws_config),
         /*profiles*/ None,
         crate::core::Features::default(),
         None,

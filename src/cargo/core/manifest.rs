@@ -16,12 +16,21 @@ use crate::core::{Dependency, PackageId, PackageIdSpec, SourceId, Summary};
 use crate::core::{Edition, Feature, Features, WorkspaceConfig};
 use crate::util::errors::*;
 use crate::util::interning::InternedString;
-use crate::util::toml::{TomlManifest, TomlProfiles};
+use crate::util::toml::{DefinedTomlManifest, TomlProfiles};
 use crate::util::{short_hash, Config, Filesystem};
 
 pub enum EitherManifest {
     Real(Manifest),
     Virtual(VirtualManifest),
+}
+
+impl EitherManifest {
+    pub fn workspace(&self) -> Rc<WorkspaceConfig> {
+        match self {
+            Self::Real(manifest) => Rc::clone(&manifest.workspace),
+            Self::Virtual(virtual_manifest) => Rc::clone(&virtual_manifest.workspace),
+        }
+    }
 }
 
 /// Contains all the information about a package, as loaded from a `Cargo.toml`.
@@ -40,8 +49,8 @@ pub struct Manifest {
     publish_lockfile: bool,
     replace: Vec<(PackageIdSpec, Dependency)>,
     patch: HashMap<Url, Vec<Dependency>>,
-    workspace: WorkspaceConfig,
-    original: Rc<TomlManifest>,
+    workspace: Rc<WorkspaceConfig>,
+    original: Rc<DefinedTomlManifest>,
     features: Features,
     edition: Edition,
     im_a_teapot: Option<bool>,
@@ -66,7 +75,7 @@ pub struct Warnings(Vec<DelayedWarning>);
 pub struct VirtualManifest {
     replace: Vec<(PackageIdSpec, Dependency)>,
     patch: HashMap<Url, Vec<Dependency>>,
-    workspace: WorkspaceConfig,
+    workspace: Rc<WorkspaceConfig>,
     profiles: Option<TomlProfiles>,
     warnings: Warnings,
     features: Features,
@@ -370,12 +379,12 @@ impl Manifest {
         publish_lockfile: bool,
         replace: Vec<(PackageIdSpec, Dependency)>,
         patch: HashMap<Url, Vec<Dependency>>,
-        workspace: WorkspaceConfig,
+        workspace: Rc<WorkspaceConfig>,
         features: Features,
         edition: Edition,
         im_a_teapot: Option<bool>,
         default_run: Option<String>,
-        original: Rc<TomlManifest>,
+        original: Rc<DefinedTomlManifest>,
         metabuild: Option<Vec<String>>,
         resolve_behavior: Option<ResolveBehavior>,
     ) -> Manifest {
@@ -453,7 +462,7 @@ impl Manifest {
     pub fn replace(&self) -> &[(PackageIdSpec, Dependency)] {
         &self.replace
     }
-    pub fn original(&self) -> &TomlManifest {
+    pub fn original(&self) -> &DefinedTomlManifest {
         &self.original
     }
     pub fn patch(&self) -> &HashMap<Url, Vec<Dependency>> {
@@ -463,8 +472,8 @@ impl Manifest {
         self.links.as_deref()
     }
 
-    pub fn workspace_config(&self) -> &WorkspaceConfig {
-        &self.workspace
+    pub fn workspace_config(&self) -> Rc<WorkspaceConfig> {
+        Rc::clone(&self.workspace)
     }
 
     pub fn features(&self) -> &Features {
@@ -538,7 +547,7 @@ impl VirtualManifest {
     pub fn new(
         replace: Vec<(PackageIdSpec, Dependency)>,
         patch: HashMap<Url, Vec<Dependency>>,
-        workspace: WorkspaceConfig,
+        workspace: Rc<WorkspaceConfig>,
         profiles: Option<TomlProfiles>,
         features: Features,
         resolve_behavior: Option<ResolveBehavior>,
@@ -562,8 +571,8 @@ impl VirtualManifest {
         &self.patch
     }
 
-    pub fn workspace_config(&self) -> &WorkspaceConfig {
-        &self.workspace
+    pub fn workspace_config(&self) -> Rc<WorkspaceConfig> {
+        Rc::clone(&self.workspace)
     }
 
     pub fn profiles(&self) -> Option<&TomlProfiles> {
