@@ -358,6 +358,7 @@ pub struct CliUnstable {
     pub rustdoc_map: bool,
     pub terminal_width: Option<Option<usize>>,
     pub namespaced_features: bool,
+    pub hash_tracking: bool,
     pub weak_dep_features: bool,
     pub extra_link_arg: bool,
 }
@@ -466,6 +467,7 @@ impl CliUnstable {
             "rustdoc-map" => self.rustdoc_map = parse_empty(k, v)?,
             "terminal-width" => self.terminal_width = Some(parse_usize_opt(v)?),
             "namespaced-features" => self.namespaced_features = parse_empty(k, v)?,
+            "hash-tracking" => self.hash_tracking = parse_empty(k, v)?,
             "weak-dep-features" => self.weak_dep_features = parse_empty(k, v)?,
             "extra-link-arg" => self.extra_link_arg = parse_empty(k, v)?,
             _ => bail!("unknown `-Z` flag specified: {}", k),

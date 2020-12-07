@@ -24,13 +24,13 @@
 
 use std::collections::{BTreeSet, HashSet};
 use std::io::{BufWriter, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use log::debug;
 
 use super::{fingerprint, Context, FileFlavor, Unit};
-use crate::util::paths;
-use crate::util::{internal, CargoResult};
+use crate::core::compiler::content_hash::Fileprint;
+use crate::util::{internal, paths, CargoResult};
 
 fn render_filename<P: AsRef<Path>>(path: P, basedir: Option<&str>) -> CargoResult<String> {
     let path = path.as_ref();
@@ -48,7 +48,7 @@ fn render_filename<P: AsRef<Path>>(path: P, basedir: Option<&str>) -> CargoResul
 }
 
 fn add_deps_for_unit(
-    deps: &mut BTreeSet<PathBuf>,
+    deps: &mut BTreeSet<Fileprint>,
     cx: &mut Context<'_, '_>,
     unit: &Unit,
     visited: &mut HashSet<Unit>,
@@ -62,11 +62,21 @@ fn add_deps_for_unit(
     if !unit.mode.is_run_custom_build() {
         // Add dependencies from rustc dep-info output (stored in fingerprint directory)
         let dep_info_loc = fingerprint::dep_info_loc(cx, unit);
-        if let Some(paths) =
-            fingerprint::parse_dep_info(unit.pkg.root(), cx.files().host_root(), &dep_info_loc)?
-        {
-            for path in paths.files {
-                deps.insert(path);
+
+        let mut dep_info = cx.dep_info_cache.get(&dep_info_loc);
+        if dep_info.is_none() {
+            if let Some(parsed_dep_info) =
+                fingerprint::parse_dep_info(unit.pkg.root(), cx.files().host_root(), &dep_info_loc)?
+            {
+                cx.dep_info_cache
+                    .insert(dep_info_loc.clone(), parsed_dep_info);
+                dep_info = cx.dep_info_cache.get(&dep_info_loc);
+            }
+        }
+
+        if let Some(paths) = dep_info {
+            for path in &paths.files {
+                deps.insert(path.clone());
             }
         } else {
             debug!(
@@ -87,7 +97,7 @@ fn add_deps_for_unit(
             .get(unit.pkg.package_id(), metadata)
         {
             for path in &output.rerun_if_changed {
-                deps.insert(path.into());
+                deps.insert(Fileprint::from_md5(path.to_path_buf()));
             }
         }
     }
@@ -107,7 +117,7 @@ fn add_deps_for_unit(
 /// This only saves files for uplifted artifacts.
 pub fn output_depinfo(cx: &mut Context<'_, '_>, unit: &Unit) -> CargoResult<()> {
     let bcx = cx.bcx;
-    let mut deps = BTreeSet::new();
+    let mut deps: BTreeSet<Fileprint> = BTreeSet::new();
     let mut visited = HashSet::new();
     let success = add_deps_for_unit(&mut deps, cx, unit, &mut visited).is_ok();
     let basedir_string;
@@ -125,7 +135,7 @@ pub fn output_depinfo(cx: &mut Context<'_, '_>, unit: &Unit) -> CargoResult<()> 
     };
     let deps = deps
         .iter()
-        .map(|f| render_filename(f, basedir))
+        .map(|f| render_filename(&f.path, basedir).map(|rendered| (rendered, f)))
         .collect::<CargoResult<Vec<_>>>()?;
 
     for output in cx
@@ -141,7 +151,7 @@ pub fn output_depinfo(cx: &mut Context<'_, '_>, unit: &Unit) -> CargoResult<()> 
                 // If nothing changed don't recreate the file which could alter
                 // its mtime
                 if let Ok(previous) = fingerprint::parse_rustc_dep_info(&output_path) {
-                    if previous.files.iter().eq(deps.iter().map(Path::new)) {
+                    if previous.files.iter().eq(deps.iter().map(|(_, dep)| *dep)) {
                         continue;
                     }
                 }
@@ -149,10 +159,28 @@ pub fn output_depinfo(cx: &mut Context<'_, '_>, unit: &Unit) -> CargoResult<()> 
                 // Otherwise write it all out
                 let mut outfile = BufWriter::new(paths::create(output_path)?);
                 write!(outfile, "{}:", target_fn)?;
-                for dep in &deps {
-                    write!(outfile, " {}", dep)?;
+                for (rendered_dep, _) in &deps {
+                    write!(outfile, " {}", rendered_dep)?;
                 }
                 writeln!(outfile)?;
+
+                // Emit a fake target for each input file to the compilation. This
+                // prevents `make` from spitting out an error if a file is later
+                // deleted. For more info see #28735
+                for (
+                    rendered_dep,
+                    Fileprint {
+                        path: _dep,
+                        size,
+                        hash,
+                    },
+                ) in &deps
+                {
+                    writeln!(outfile, "{}:", rendered_dep)?;
+                    if let (Some(size), Some(hash)) = (size, hash) {
+                        writeln!(outfile, "# size:{} {}", size, hash)?;
+                    }
+                }
 
             // dep-info generation failed, so delete output file. This will
             // usually cause the build system to always rerun the build

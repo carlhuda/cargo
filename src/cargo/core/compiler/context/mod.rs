@@ -2,9 +2,10 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use filetime::FileTime;
 use jobserver::Client;
 
+use crate::core::compiler::content_hash::CurrentFileprint;
+use crate::core::compiler::fingerprint::RustcDepInfo;
 use crate::core::compiler::{self, compilation, Unit};
 use crate::core::PackageId;
 use crate::util::errors::{CargoResult, CargoResultExt};
@@ -38,7 +39,9 @@ pub struct Context<'a, 'cfg> {
     /// Fingerprints used to detect if a unit is out-of-date.
     pub fingerprints: HashMap<Unit, Arc<Fingerprint>>,
     /// Cache of file mtimes to reduce filesystem hits.
-    pub mtime_cache: HashMap<PathBuf, FileTime>,
+    pub mtime_cache: HashMap<PathBuf, CurrentFileprint>,
+    /// Cache of dep_info to reduce filesystem hits.
+    pub dep_info_cache: HashMap<PathBuf, RustcDepInfo>,
     /// A set used to track which units have been compiled.
     /// A unit may appear in the job graph multiple times as a dependency of
     /// multiple packages, but it only needs to run once.
@@ -107,6 +110,7 @@ impl<'a, 'cfg> Context<'a, 'cfg> {
             build_script_outputs: Arc::new(Mutex::new(BuildScriptOutputs::default())),
             fingerprints: HashMap::new(),
             mtime_cache: HashMap::new(),
+            dep_info_cache: HashMap::new(),
             compiled: HashSet::new(),
             build_scripts: HashMap::new(),
             build_explicit_deps: HashMap::new(),
