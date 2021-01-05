@@ -451,7 +451,7 @@ fn registry(
     }
     let api_host = {
         let _lock = config.acquire_package_cache_lock()?;
-        let mut src = RegistrySource::remote(sid, &HashSet::new(), config);
+        let mut src = RegistrySource::remote(sid, &HashSet::new(), config)?;
         // Only update the index if the config is not available or `force` is set.
         let cfg = src.config();
         let mut updated_cfg = || {

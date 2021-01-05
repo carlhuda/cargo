@@ -1,6 +1,7 @@
 #![allow(clippy::many_single_char_names)]
 #![allow(clippy::needless_range_loop)] // false positives
 
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::cmp::{max, min};
