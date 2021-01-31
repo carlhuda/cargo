@@ -765,6 +765,7 @@ fn build_base_args(
     let bcx = cx.bcx;
     let Profile {
         ref opt_level,
+        codegen_backend,
         codegen_units,
         debuginfo,
         debug_assertions,
@@ -828,6 +829,10 @@ fn build_base_args(
         if let Some(split) = split_debuginfo {
             cmd.arg("-C").arg(format!("split-debuginfo={}", split));
         }
+    }
+
+    if let Some(backend) = codegen_backend {
+        cmd.arg("-Z").arg(&format!("codegen-backend={}", backend));
     }
 
     if let Some(n) = codegen_units {

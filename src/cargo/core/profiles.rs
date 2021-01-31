@@ -556,6 +556,9 @@ fn merge_profile(profile: &mut Profile, toml: &TomlProfile) {
         Some(StringOrBool::String(ref n)) => profile.lto = Lto::Named(InternedString::new(n)),
         None => {}
     }
+    if toml.codegen_backend.is_some() {
+        profile.codegen_backend = toml.codegen_backend;
+    }
     if toml.codegen_units.is_some() {
         profile.codegen_units = toml.codegen_units;
     }
@@ -617,6 +620,8 @@ pub struct Profile {
     pub root: ProfileRoot,
     pub lto: Lto,
     // `None` means use rustc default.
+    pub codegen_backend: Option<InternedString>,
+    // `None` means use rustc default.
     pub codegen_units: Option<u32>,
     pub debuginfo: Option<u32>,
     pub split_debuginfo: Option<InternedString>,
@@ -635,6 +640,7 @@ impl Default for Profile {
             opt_level: InternedString::new("0"),
             root: ProfileRoot::Debug,
             lto: Lto::Bool(false),
+            codegen_backend: None,
             codegen_units: None,
             debuginfo: None,
             debug_assertions: false,
@@ -661,6 +667,7 @@ compact_debug! {
                 opt_level
                 lto
                 root
+                codegen_backend
                 codegen_units
                 debuginfo
                 split_debuginfo
@@ -748,6 +755,7 @@ impl Profile {
         (
             self.opt_level,
             self.lto,
+            self.codegen_backend,
             self.codegen_units,
             self.debuginfo,
             self.split_debuginfo,

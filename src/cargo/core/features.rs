@@ -282,6 +282,9 @@ features! {
 
     // Specifying a minimal 'rust-version' attribute for crates
     (unstable, rust_version, "", "reference/unstable.html#rust-version"),
+
+    // Allow to specify which codegen backend should be used.
+    (unstable, codegen_backend, "", "reference/unstable.html#codegen-backend"),
 }
 
 const PUBLISH_LOCKFILE_REMOVED: &str = "The publish-lockfile key in Cargo.toml \
