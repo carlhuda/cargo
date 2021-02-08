@@ -22,6 +22,7 @@ use log::debug;
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::rc::Rc;
+use std::task::Poll;
 
 pub struct RegistryQueryer<'a> {
     pub registry: &'a mut (dyn Registry + 'a),
@@ -32,11 +33,11 @@ pub struct RegistryQueryer<'a> {
     /// specify minimum dependency versions to be used.
     minimal_versions: bool,
     /// a cache of `Candidate`s that fulfil a `Dependency`
-    registry_cache: HashMap<Dependency, Rc<Vec<Summary>>>,
+    registry_cache: HashMap<Dependency, Poll<Rc<Vec<Summary>>>>,
     /// a cache of `Dependency`s that are required for a `Summary`
     summary_cache: HashMap<
         (Option<PackageId>, Summary, ResolveOpts),
-        Rc<(HashSet<InternedString>, Rc<Vec<DepInfo>>)>,
+        (Rc<(HashSet<InternedString>, Rc<Vec<DepInfo>>)>, bool),
     >,
     /// all the cases we ended up using a supplied replacement
     used_replacements: HashMap<PackageId, Summary>,
@@ -65,6 +66,23 @@ impl<'a> RegistryQueryer<'a> {
             config,
             warned_git_collisions: HashSet::new(),
         }
+    }
+
+    pub fn reset_pending(&mut self) -> bool {
+        let mut all_ready = true;
+        self.registry_cache.retain(|_, r| {
+            if !r.is_ready() {
+                all_ready = false;
+            }
+            r.is_ready()
+        });
+        self.summary_cache.retain(|_, (_, r)| {
+            if !*r {
+                all_ready = false;
+            }
+            *r
+        });
+        all_ready
     }
 
     pub fn used_replacement_for(&self, p: PackageId) -> Option<(PackageId, PackageId)> {
@@ -119,20 +137,24 @@ impl<'a> RegistryQueryer<'a> {
     /// any candidates are returned which match an override then the override is
     /// applied by performing a second query for what the override should
     /// return.
-    pub fn query(&mut self, dep: &Dependency) -> CargoResult<Rc<Vec<Summary>>> {
+    pub fn query(&mut self, dep: &Dependency) -> CargoResult<Poll<Rc<Vec<Summary>>>> {
         self.warn_colliding_git_sources(dep.source_id())?;
         if let Some(out) = self.registry_cache.get(dep).cloned() {
             return Ok(out);
         }
 
         let mut ret = Vec::new();
-        self.registry.query(
+        let ready = self.registry.query(
             dep,
             &mut |s| {
                 ret.push(s);
             },
             false,
         )?;
+        if ready.is_pending() {
+            self.registry_cache.insert(dep.clone(), Poll::Pending);
+            return Ok(Poll::Pending);
+        }
         for summary in ret.iter_mut() {
             let mut potential_matches = self
                 .replacements
@@ -149,7 +171,13 @@ impl<'a> RegistryQueryer<'a> {
                 dep.version_req()
             );
 
-            let mut summaries = self.registry.query_vec(dep, false)?.into_iter();
+            let mut summaries = match self.registry.query_vec(dep, false)? {
+                Poll::Ready(s) => s.into_iter(),
+                Poll::Pending => {
+                    self.registry_cache.insert(dep.clone(), Poll::Pending);
+                    return Ok(Poll::Pending);
+                }
+            };
             let s = summaries.next().ok_or_else(|| {
                 anyhow::format_err!(
                     "no matching package for override `{}` found\n\
@@ -231,7 +259,7 @@ impl<'a> RegistryQueryer<'a> {
             }
         });
 
-        let out = Rc::new(ret);
+        let out = Poll::Ready(Rc::new(ret));
 
         self.registry_cache.insert(dep.clone(), out.clone());
 
@@ -254,9 +282,8 @@ impl<'a> RegistryQueryer<'a> {
         if let Some(out) = self
             .summary_cache
             .get(&(parent, candidate.clone(), opts.clone()))
-            .cloned()
         {
-            return Ok(out);
+            return Ok(out.0.clone());
         }
         // First, figure out our set of dependencies based on the requested set
         // of features. This also calculates what features we're going to enable
@@ -265,17 +292,22 @@ impl<'a> RegistryQueryer<'a> {
 
         // Next, transform all dependencies into a list of possible candidates
         // which can satisfy that dependency.
+        let mut all_ready = true;
         let mut deps = deps
             .into_iter()
-            .map(|(dep, features)| {
-                let candidates = self.query(&dep).chain_err(|| {
+            .filter_map(|(dep, features)| match self.query(&dep) {
+                Ok(Poll::Ready(candidates)) => Some(Ok((dep, candidates, features))),
+                Ok(Poll::Pending) => {
+                    all_ready = false;
+                    None // we can ignore Pending deps, resolved will be repeatedly called until there are none to ignore
+                }
+                Err(x) => Some(Err(x).chain_err(|| {
                     anyhow::format_err!(
                         "failed to get `{}` as a dependency of {}",
                         dep.package_name(),
                         describe_path(&cx.parents.path_to_bottom(&candidate.package_id())),
                     )
-                })?;
-                Ok((dep, candidates, features))
+                })),
             })
             .collect::<CargoResult<Vec<DepInfo>>>()?;
 
@@ -289,8 +321,10 @@ impl<'a> RegistryQueryer<'a> {
 
         // If we succeed we add the result to the cache so we can use it again next time.
         // We don't cache the failure cases as they don't impl Clone.
-        self.summary_cache
-            .insert((parent, candidate.clone(), opts.clone()), out.clone());
+        self.summary_cache.insert(
+            (parent, candidate.clone(), opts.clone()),
+            (out.clone(), all_ready),
+        );
 
         Ok(out)
     }

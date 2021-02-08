@@ -1,9 +1,8 @@
-use std::fmt;
-
 use crate::core::{Dependency, PackageId, Registry, Summary};
 use crate::util::lev_distance::lev_distance;
 use crate::util::Config;
 use anyhow::Error;
+use std::fmt;
 
 use super::context::Context;
 use super::types::{ConflictMap, ConflictReason};
@@ -214,9 +213,13 @@ pub(super) fn activation_error(
     let all_req = semver::VersionReq::parse("*").unwrap();
     let mut new_dep = dep.clone();
     new_dep.set_version_req(all_req);
-    let mut candidates = match registry.query_vec(&new_dep, false) {
-        Ok(candidates) => candidates,
-        Err(e) => return to_resolve_err(e),
+
+    let mut candidates = Vec::new();
+    // we can ignore the `Pending` case because we are just in an error reporting path,
+    // and we have probably already triggered the query anyway. But, if we start getting reports
+    // of confusing errors that go away when called again this is a place to look.
+    if let Err(e) = registry.query(&new_dep, &mut |s| candidates.push(s), false) {
+        return to_resolve_err(e);
     };
     candidates.sort_unstable_by(|a, b| b.version().cmp(a.version()));
 
@@ -270,6 +273,9 @@ pub(super) fn activation_error(
             // was meant. So we try asking the registry for a `fuzzy` search for suggestions.
             let mut candidates = Vec::new();
             if let Err(e) = registry.query(&new_dep, &mut |s| candidates.push(s), true) {
+                // we can ignore the `Pending` case because we are just in an error reporting path,
+                // and we have probably already triggered the query anyway. But, if we start getting reports
+                // of confusing errors that go away when called again this is a place to look.
                 return to_resolve_err(e);
             };
             candidates.sort_unstable_by_key(|a| a.name());
