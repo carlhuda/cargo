@@ -1064,6 +1064,24 @@ version = "0.0.1"
 rust-version = "1.42"
 ```
 
+### codegen-backend
+
+The `codegen-backend` feature makes it possible to select the codegen backend used by rustc using a
+profile.
+
+Example:
+
+```toml
+[package]
+name = "foo"
+
+[dependencies]
+serde = "1.0.117"
+
+[profile.dev.package.foo]
+codegen-backend = "/path/to/librustc_codegen_cranelift.so"
+```
+
 <script>
 (function() {
     var fragments = {
