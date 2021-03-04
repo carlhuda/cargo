@@ -22,7 +22,9 @@ use crate::core::{GitReference, PackageIdSpec, SourceId, WorkspaceConfig, Worksp
 use crate::sources::{CRATES_IO_INDEX, CRATES_IO_REGISTRY};
 use crate::util::errors::{CargoResult, CargoResultExt, ManifestError};
 use crate::util::interning::InternedString;
-use crate::util::{self, paths, validate_package_name, Config, IntoUrl};
+use crate::util::{
+    self, config::ConfigRelativePath, paths, validate_package_name, Config, IntoUrl,
+};
 
 mod targets;
 use self::targets::targets;
@@ -259,6 +261,7 @@ pub struct DetailedTomlDependency {
     /// crates published by other users.
     registry_index: Option<String>,
     path: Option<String>,
+    base: Option<String>,
     git: Option<String>,
     branch: Option<String>,
     tag: Option<String>,
@@ -1003,6 +1006,7 @@ impl TomlManifest {
                     let mut d = d.clone();
                     // Path dependencies become crates.io deps.
                     d.path.take();
+                    d.base.take();
                     // Same with git dependencies.
                     d.git.take();
                     d.branch.take();
@@ -1772,7 +1776,31 @@ impl DetailedTomlDependency {
                 // always end up hashing to the same value no matter where it's
                 // built from.
                 if cx.source_id.is_path() {
-                    let path = cx.root.join(path);
+                    let path = if let Some(base) = self.base.as_ref() {
+                        if !cx.config.cli_unstable().path_bases {
+                            bail!("Usage of path bases requires `-Z path-bases`");
+                        }
+
+                        // Look up the relevant base in the Config and use that as the root.
+                        if let Some(base_path) = cx
+                            .config
+                            .get::<Option<ConfigRelativePath>>(&format!("base.{}", base))?
+                        {
+                            let base_path = base_path.resolve_path(cx.config);
+                            base_path.join(path)
+                        } else {
+                            bail!(
+                                "path base `{}` is undefined for path `{}`. \
+                                 You must specify a path for `base.{}` in your cargo configuration.",
+                                base,
+                                path,
+                                base
+                            );
+                        }
+                    } else {
+                        // This is a standard path with no prefix.
+                        cx.root.join(path)
+                    };
                     let path = util::normalize_path(&path);
                     SourceId::for_path(&path)?
                 } else {

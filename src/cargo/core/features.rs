@@ -558,6 +558,7 @@ pub struct CliUnstable {
     pub extra_link_arg: bool,
     pub credential_process: bool,
     pub configurable_env: bool,
+    pub path_bases: bool,
 }
 
 const STABILIZED_COMPILE_PROGRESS: &str = "The progress bar is now always \
@@ -747,6 +748,7 @@ impl CliUnstable {
             "weak-dep-features" => self.weak_dep_features = parse_empty(k, v)?,
             "extra-link-arg" => self.extra_link_arg = parse_empty(k, v)?,
             "credential-process" => self.credential_process = parse_empty(k, v)?,
+            "path-bases" => self.path_bases = parse_empty(k, v)?,
             "compile-progress" => stabilized_warn(k, "1.30", STABILIZED_COMPILE_PROGRESS),
             "offline" => stabilized_err(k, "1.36", STABILIZED_OFFLINE)?,
             "cache-messages" => stabilized_warn(k, "1.40", STABILIZED_CACHE_MESSAGES),
