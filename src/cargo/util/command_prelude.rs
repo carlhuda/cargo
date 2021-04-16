@@ -69,7 +69,8 @@ pub trait AppExt: Sized {
         self._arg(
             opt("jobs", "Number of parallel jobs, defaults to # of CPUs")
                 .short("j")
-                .value_name("N"),
+                .value_name("N")
+                .allow_hyphen_values(true),
         )
     }
 
@@ -296,6 +297,16 @@ pub trait ArgMatchesExt {
         Ok(arg)
     }
 
+    fn value_of_i32(&self, name: &str) -> CargoResult<Option<i32>> {
+        let arg = match self._value_of(name) {
+            None => None,
+            Some(arg) => Some(arg.parse::<i32>().map_err(|_| {
+                clap::Error::value_validation_auto(format!("could not parse `{}` as a number", arg))
+            })?),
+        };
+        Ok(arg)
+    }
+
     /// Returns value of the `name` command-line argument as an absolute path
     fn value_of_path(&self, name: &str, config: &Config) -> Option<PathBuf> {
         self._value_of(name).map(|path| config.cwd().join(path))
@@ -329,8 +340,8 @@ pub trait ArgMatchesExt {
         Ok(ws)
     }
 
-    fn jobs(&self) -> CargoResult<Option<u32>> {
-        self.value_of_u32("jobs")
+    fn jobs(&self) -> CargoResult<Option<i32>> {
+        self.value_of_i32("jobs")
     }
 
     fn targets(&self) -> Vec<String> {
