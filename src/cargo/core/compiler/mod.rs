@@ -20,6 +20,7 @@ mod timings;
 mod unit;
 pub mod unit_dependencies;
 pub mod unit_graph;
+pub mod unused_dependencies;
 
 use std::env;
 use std::ffi::{OsStr, OsString};
@@ -49,6 +50,7 @@ pub(crate) use self::layout::Layout;
 pub use self::lto::Lto;
 use self::output_depinfo::output_depinfo;
 use self::unit_graph::UnitDep;
+use self::unused_dependencies::UnusedExterns;
 use crate::core::compiler::future_incompat::FutureIncompatReport;
 pub use crate::core::compiler::unit::{Unit, UnitInterner};
 use crate::core::manifest::TargetSourcePath;
@@ -214,6 +216,10 @@ fn rustc(cx: &mut Context<'_, '_>, unit: &Unit, exec: &Arc<dyn Executor>) -> Car
     let buildkey = unit.buildkey();
 
     add_cap_lints(cx.bcx, unit, &mut rustc);
+
+    if cx.bcx.config.cli_unstable().warn_unused_deps && unit.show_warnings(cx.bcx.config) {
+        rustc.arg("-W").arg("unused_crate_dependencies");
+    }
 
     let outputs = cx.outputs(unit)?;
     let root = cx.files().out_dir(unit);
@@ -614,7 +620,7 @@ fn rustdoc(cx: &mut Context<'_, '_>, unit: &Unit) -> CargoResult<Work> {
         rustdoc.arg("--cfg").arg(&format!("feature=\"{}\"", feat));
     }
 
-    add_error_format_and_color(cx, &mut rustdoc, false);
+    add_error_format_and_color(cx, unit, &mut rustdoc, false);
     add_allow_features(cx, &mut rustdoc);
 
     if let Some(args) = cx.bcx.extra_args_for(unit) {
@@ -715,13 +721,24 @@ fn add_allow_features(cx: &Context<'_, '_>, cmd: &mut ProcessBuilder) {
 /// intercepting messages like rmeta artifacts, etc. rustc includes a
 /// "rendered" field in the JSON message with the message properly formatted,
 /// which Cargo will extract and display to the user.
-fn add_error_format_and_color(cx: &Context<'_, '_>, cmd: &mut ProcessBuilder, pipelined: bool) {
+fn add_error_format_and_color(
+    cx: &Context<'_, '_>,
+    unit: &Unit,
+    cmd: &mut ProcessBuilder,
+    pipelined: bool,
+) {
     cmd.arg("--error-format=json");
     let mut json = String::from("--json=diagnostic-rendered-ansi");
     if pipelined {
         // Pipelining needs to know when rmeta files are finished. Tell rustc
         // to emit a message that cargo will intercept.
         json.push_str(",artifacts");
+    }
+
+    // Emit unused externs but only if the flag is enabled
+    // and only for units we are interested in.
+    if cx.bcx.config.cli_unstable().warn_unused_deps && unit.show_warnings(cx.bcx.config) {
+        json.push_str(",unused-externs");
     }
 
     match cx.bcx.build_config.message_format {
@@ -782,7 +799,7 @@ fn build_base_args(
     edition.cmd_edition_arg(cmd);
 
     add_path_args(bcx.ws, unit, cmd);
-    add_error_format_and_color(cx, cmd, cx.rmeta_required(unit));
+    add_error_format_and_color(cx, unit, cmd, cx.rmeta_required(unit));
     add_allow_features(cx, cmd);
 
     if !test {
@@ -1036,6 +1053,10 @@ fn build_deps_args(
 
     for arg in extern_args(cx, unit, &mut unstable_opts)? {
         cmd.arg(arg);
+    }
+
+    if cx.bcx.config.cli_unstable().warn_unused_deps {
+        unstable_opts = true;
     }
 
     // This will only be set if we're already using a feature
@@ -1320,6 +1341,12 @@ fn on_stderr_line_inner(
             }
             return Ok(false);
         }
+    }
+
+    if let Ok(uext) = serde_json::from_str::<UnusedExterns>(compiler_message.get()) {
+        log::trace!("obtained unused externs message from rustc: `{:?}`", uext);
+        state.unused_externs(uext);
+        return Ok(true);
     }
 
     #[derive(serde::Deserialize)]

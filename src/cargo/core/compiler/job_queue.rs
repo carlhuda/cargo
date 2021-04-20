@@ -70,6 +70,7 @@ use super::job::{
     Job,
 };
 use super::timings::Timings;
+use super::unused_dependencies::{UnusedDepState, UnusedExterns};
 use super::{BuildContext, BuildPlan, CompileMode, Context, Unit};
 use crate::core::compiler::future_incompat::{
     FutureBreakageItem, OnDiskReport, FUTURE_INCOMPAT_FILE,
@@ -133,6 +134,7 @@ struct DrainState<'cfg> {
     progress: Progress<'cfg>,
     next_id: u32,
     timings: Timings<'cfg>,
+    unused_dep_state: UnusedDepState,
 
     /// Tokens that are currently owned by this Cargo, and may be "associated"
     /// with a rustc process. They may also be unused, though if so will be
@@ -242,6 +244,7 @@ enum Message {
     Token(io::Result<Acquired>),
     Finish(JobId, Artifact, CargoResult<()>),
     FutureIncompatReport(JobId, Vec<FutureBreakageItem>),
+    UnusedExterns(JobId, UnusedExterns),
 
     // This client should get release_raw called on it with one of our tokens
     NeedsToken(JobId),
@@ -299,6 +302,15 @@ impl<'a> JobState<'a> {
     pub fn future_incompat_report(&self, report: Vec<FutureBreakageItem>) {
         self.messages
             .push(Message::FutureIncompatReport(self.id, report));
+    }
+
+    /// The rustc emitted the list of unused `--extern` args.
+    ///
+    /// This is useful for checking unused dependencies.
+    /// Should only be called once, as the compiler only emits it once per compilation.
+    pub fn unused_externs(&self, unused_externs: UnusedExterns) {
+        self.messages
+            .push(Message::UnusedExterns(self.id, unused_externs));
     }
 
     /// The rustc underlying this Job is about to acquire a jobserver token (i.e., block)
@@ -403,7 +415,11 @@ impl<'cfg> JobQueue<'cfg> {
     /// This function will spawn off `config.jobs()` workers to build all of the
     /// necessary dependencies, in order. Freshness is propagated as far as
     /// possible along each dependency chain.
-    pub fn execute(mut self, cx: &mut Context<'_, '_>, plan: &mut BuildPlan) -> CargoResult<()> {
+    pub fn execute(
+        mut self,
+        cx: &mut Context<'_, '_>,
+        plan: &mut BuildPlan,
+    ) -> CargoResult<UnusedDepState> {
         let _p = profile::start("executing the job graph");
         self.queue.queue_finished();
 
@@ -423,6 +439,7 @@ impl<'cfg> JobQueue<'cfg> {
             progress,
             next_id: 0,
             timings: self.timings,
+            unused_dep_state: UnusedDepState::new_with_graph(cx),
             tokens: Vec::new(),
             rustc_tokens: HashMap::new(),
             to_send_clients: BTreeMap::new(),
@@ -457,10 +474,8 @@ impl<'cfg> JobQueue<'cfg> {
             .map(move |srv| srv.start(move |msg| messages.push(Message::FixDiagnostic(msg))));
 
         crossbeam_utils::thread::scope(move |scope| {
-            match state.drain_the_queue(cx, plan, scope, &helper) {
-                Some(err) => Err(err),
-                None => Ok(()),
-            }
+            let (result,) = state.drain_the_queue(cx, plan, scope, &helper);
+            result
         })
         .expect("child threads shouldn't panic")
     }
@@ -616,6 +631,15 @@ impl<'cfg> DrainState<'cfg> {
                 self.per_crate_future_incompat_reports
                     .push(FutureIncompatReportCrate { package_id, report });
             }
+            Message::UnusedExterns(id, unused_externs) => {
+                let unit = &self.active[&id];
+                let unit_deps = cx.unit_deps(&unit);
+                self.unused_dep_state.record_unused_externs_for_unit(
+                    unit_deps,
+                    unit,
+                    unused_externs,
+                );
+            }
             Message::Token(acquired_token) => {
                 let token = acquired_token.with_context(|| "failed to acquire jobserver token")?;
                 self.tokens.push(token);
@@ -691,15 +715,16 @@ impl<'cfg> DrainState<'cfg> {
     /// This is the "main" loop, where Cargo does all work to run the
     /// compiler.
     ///
-    /// This returns an Option to prevent the use of `?` on `Result` types
-    /// because it is important for the loop to carefully handle errors.
+    /// This returns a tuple of `Result` to prevent the use of `?` on
+    /// `Result` types because it is important for the loop to
+    /// carefully handle errors.
     fn drain_the_queue(
         mut self,
         cx: &mut Context<'_, '_>,
         plan: &mut BuildPlan,
         scope: &Scope<'_>,
         jobserver_helper: &HelperThread,
-    ) -> Option<anyhow::Error> {
+    ) -> (Result<UnusedDepState, anyhow::Error>,) {
         trace!("queue: {:#?}", self.queue);
 
         // Iteratively execute the entire dependency graph. Each turn of the
@@ -769,7 +794,7 @@ impl<'cfg> DrainState<'cfg> {
             if error.is_some() {
                 crate::display_error(&e, &mut cx.bcx.config.shell());
             } else {
-                return Some(e);
+                return (Err(e),);
             }
         }
         if cx.bcx.build_config.emit_json() {
@@ -782,13 +807,17 @@ impl<'cfg> DrainState<'cfg> {
                 if error.is_some() {
                     crate::display_error(&e.into(), &mut shell);
                 } else {
-                    return Some(e.into());
+                    return (Err(e.into()),);
                 }
             }
         }
 
+        if !cx.bcx.build_config.build_plan && cx.bcx.config.cli_unstable().warn_unused_deps {
+            drop(self.unused_dep_state.emit_unused_early_warnings(cx));
+        }
+
         if let Some(e) = error {
-            Some(e)
+            (Err(e),)
         } else if self.queue.is_empty() && self.pending_queue.is_empty() {
             let message = format!(
                 "{} [{}] target(s) in {}",
@@ -800,10 +829,10 @@ impl<'cfg> DrainState<'cfg> {
                 self.emit_future_incompat(cx);
             }
 
-            None
+            (Ok(self.unused_dep_state),)
         } else {
             debug!("queue: {:#?}", self.queue);
-            Some(internal("finished with jobs still left in the queue"))
+            (Err(internal("finished with jobs still left in the queue")),)
         }
     }
 
