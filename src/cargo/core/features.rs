@@ -584,7 +584,6 @@ unstable_cli_options!(
     build_std: Option<Vec<String>>  = ("Enable Cargo to compile the standard library itself as part of a crate graph compilation"),
     build_std_features: Option<Vec<String>>  = ("Configure features enabled for the standard library itself when building the standard library"),
     config_include: bool = ("Enable the `include` key in config files"),
-    configurable_env: bool = ("Enable the [env] section in the .cargo/config.toml file"),
     credential_process: bool = ("Add a config setting to fetch registry authentication tokens by calling an external process"),
     doctest_in_workspace: bool = ("Compile doctests with paths relative to the workspace root"),
     doctest_xcompile: bool = ("Compile and run doctests for non-host target using runner config"),
@@ -643,6 +642,8 @@ const STABILIZED_FEATURES: &str = "The new feature resolver is now available \
     by specifying `resolver = \"2\"` in Cargo.toml.\n\
     See https://doc.rust-lang.org/nightly/cargo/reference/features.html#feature-resolver-version-2 \
     for more information.";
+
+const STABILIZED_CONFIGURABLE_ENV: &str = "The [env] section is now always enabled.";
 
 fn deserialize_build_std<'de, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
 where
@@ -786,7 +787,6 @@ impl CliUnstable {
             "doctest-in-workspace" => self.doctest_in_workspace = parse_empty(k, v)?,
             "panic-abort-tests" => self.panic_abort_tests = parse_empty(k, v)?,
             "jobserver-per-rustc" => self.jobserver_per_rustc = parse_empty(k, v)?,
-            "configurable-env" => self.configurable_env = parse_empty(k, v)?,
             "patch-in-config" => self.patch_in_config = parse_empty(k, v)?,
             "features" => {
                 // For now this is still allowed (there are still some
@@ -825,6 +825,7 @@ impl CliUnstable {
             "config-profile" => stabilized_warn(k, "1.43", STABILIZED_CONFIG_PROFILE),
             "crate-versions" => stabilized_warn(k, "1.47", STABILIZED_CRATE_VERSIONS),
             "package-features" => stabilized_warn(k, "1.51", STABILIZED_PACKAGE_FEATURES),
+            "configurable-env" => stabilized_warn(k, "1.52", STABILIZED_CONFIGURABLE_ENV),
             "future-incompat-report" => self.future_incompat_report = parse_empty(k, v)?,
             _ => bail!("unknown `-Z` flag specified: {}", k),
         }
