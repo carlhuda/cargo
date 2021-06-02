@@ -673,6 +673,9 @@ pub struct RustcTargetData<'cfg> {
     /// empty if the `--target` flag is not passed.
     target_config: HashMap<CompileTarget, TargetConfig>,
     target_info: HashMap<CompileTarget, TargetInfo>,
+
+    /// True if a `--target` flag is passed.
+    is_cross: bool,
 }
 
 impl<'cfg> RustcTargetData<'cfg> {
@@ -697,10 +700,13 @@ impl<'cfg> RustcTargetData<'cfg> {
         // `--target` flag is not specified. Since the unit_dependency code
         // needs access to the target config data, create a copy so that it
         // can be found. See `rebuild_unit_graph_shared` for why this is done.
-        if requested_kinds.iter().any(CompileKind::is_host) {
+        let is_cross = if requested_kinds.iter().any(CompileKind::is_host) {
             let ct = CompileTarget::new(&rustc.host)?;
             target_info.insert(ct, host_info.clone());
             target_config.insert(ct, config.target_cfg_triple(&rustc.host)?);
+            false
+        } else {
+            true
         };
 
         let mut res = RustcTargetData {
@@ -711,6 +717,7 @@ impl<'cfg> RustcTargetData<'cfg> {
             host_info,
             target_config,
             target_info,
+            is_cross,
         };
 
         // Get all kinds we currently know about.
@@ -797,6 +804,10 @@ impl<'cfg> RustcTargetData<'cfg> {
     /// Host or Target.
     pub fn script_override(&self, lib_name: &str, kind: CompileKind) -> Option<&BuildOutput> {
         self.target_config(kind).links_overrides.get(lib_name)
+    }
+
+    pub fn is_cross(&self) -> bool {
+        self.is_cross
     }
 }
 

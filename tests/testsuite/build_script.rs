@@ -115,6 +115,7 @@ fn custom_build_env_vars() {
                 let rustdoc = env::var("RUSTDOC").unwrap();
                 assert_eq!(rustdoc, "rustdoc");
 
+                assert_eq!(env::var("CARGO_BUILD_TYPE").unwrap(), "native");
                 assert!(env::var("RUSTC_LINKER").is_err());
             }}
         "#,
@@ -153,6 +154,7 @@ fn custom_build_env_var_rustc_linker() {
             use std::env;
 
             fn main() {
+                assert_eq!(env::var("CARGO_BUILD_TYPE").unwrap(), "cross");
                 assert!(env::var("RUSTC_LINKER").unwrap().ends_with("/path/to/linker"));
             }
             "#,
@@ -226,6 +228,7 @@ fn custom_build_env_var_rustc_linker_host_target() {
             use std::env;
 
             fn main() {
+                assert_eq!(env::var("CARGO_BUILD_TYPE").unwrap(), "cross");
                 assert!(env::var("RUSTC_LINKER").unwrap().ends_with("/path/to/linker"));
             }
             "#,
@@ -263,6 +266,7 @@ fn custom_build_env_var_rustc_linker_host_target_env() {
             use std::env;
 
             fn main() {
+                assert_eq!(env::var("CARGO_BUILD_TYPE").unwrap(), "cross");
                 assert!(env::var("RUSTC_LINKER").unwrap().ends_with("/path/to/linker"));
             }
             "#,
@@ -487,6 +491,7 @@ fn custom_build_env_var_rustc_linker_cross_arch_host() {
             use std::env;
 
             fn main() {
+                assert_eq!(env::var("CARGO_BUILD_TYPE").unwrap(), "cross");
                 assert!(env::var("RUSTC_LINKER").unwrap().ends_with("/path/to/target/linker"));
             }
             "#,
@@ -923,6 +928,7 @@ fn overrides_and_links() {
             r#"
                 use std::env;
                 fn main() {
+                    assert_eq!(env::var("CARGO_BUILD_TYPE").unwrap(), "native");
                     assert_eq!(env::var("DEP_FOO_FOO").ok().expect("FOO missing"),
                                "bar");
                     assert_eq!(env::var("DEP_FOO_BAR").ok().expect("BAR missing"),
@@ -1028,6 +1034,7 @@ fn links_passes_env_vars() {
             r#"
                 use std::env;
                 fn main() {
+                    assert_eq!(env::var("CARGO_BUILD_TYPE").unwrap(), "native");
                     assert_eq!(env::var("DEP_FOO_FOO").unwrap(), "bar");
                     assert_eq!(env::var("DEP_FOO_BAR").unwrap(), "baz");
                 }
@@ -1151,6 +1158,7 @@ fn rebuild_continues_to_pass_env_vars() {
             r#"
                 use std::env;
                 fn main() {
+                    assert_eq!(env::var("CARGO_BUILD_TYPE").unwrap(), "native");
                     assert_eq!(env::var("DEP_FOO_FOO").unwrap(), "bar");
                     assert_eq!(env::var("DEP_FOO_BAR").unwrap(), "baz");
                 }
