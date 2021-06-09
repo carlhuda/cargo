@@ -18,10 +18,8 @@ pub fn cli() -> App {
         ))
         .arg_target_triple("Build for the target triple")
         .arg_target_dir()
-        .arg_package_spec(
-            "Package(s) to publish",
-            "Publish all packages in the workspace",
-            "Don't publish specified packages",
+        .arg_package_spec_simple(
+            "Package to publish",
         )
         .arg_manifest_path()
         .arg_features()
