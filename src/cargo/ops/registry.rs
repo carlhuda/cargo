@@ -50,84 +50,100 @@ pub struct PublishOpts<'cfg> {
     pub verify: bool,
     pub allow_dirty: bool,
     pub jobs: Option<u32>,
+    pub to_publish: ops::Packages,
     pub targets: Vec<String>,
     pub dry_run: bool,
     pub registry: Option<String>,
     pub cli_features: CliFeatures,
 }
 
-pub fn publish(ws: &Workspace<'_>, opts: &PublishOpts<'_>) -> CargoResult<()> {
-    let pkg = ws.current()?;
-    let mut publish_registry = opts.registry.clone();
+pub fn publish(root_ws: &Workspace<'_>, opts: &PublishOpts<'_>) -> CargoResult<()> {
+    let specs = opts.to_publish.to_package_id_specs(root_ws)?;
+    let pkgs = root_ws.members_with_features(&specs, &opts.cli_features)?;
 
-    if let Some(ref allowed_registries) = *pkg.publish() {
-        if publish_registry.is_none() && allowed_registries.len() == 1 {
-            // If there is only one allowed registry, push to that one directly,
-            // even though there is no registry specified in the command.
-            let default_registry = &allowed_registries[0];
-            if default_registry != CRATES_IO_REGISTRY {
-                // Don't change the registry for crates.io and don't warn the user.
-                // crates.io will be defaulted even without this.
-                opts.config.shell().note(&format!(
-                    "Found `{}` as only allowed registry. Publishing to it automatically.",
-                    default_registry
-                ))?;
-                publish_registry = Some(default_registry.clone());
+    let mut tarballs = Vec::with_capacity(specs.len());
+    for (pkg, cli_features) in pkgs {
+        let ws = Workspace::ephemeral(
+            pkg.clone(),
+            root_ws.config(),
+            Some(root_ws.target_dir()),
+            root_ws.require_optional_deps(),
+        )?;
+        let mut publish_registry = opts.registry.clone();
+        if let Some(ref allowed_registries) = *pkg.publish() {
+            if publish_registry.is_none() && allowed_registries.len() == 1 {
+                // If there is only one allowed registry, push to that one directly,
+                // even though there is no registry specified in the command.
+                let default_registry = &allowed_registries[0];
+                if default_registry != CRATES_IO_REGISTRY {
+                    // Don't change the registry for crates.io and don't warn the user.
+                    // crates.io will be defaulted even without this.
+                    opts.config.shell().note(&format!(
+                        "Found `{}` as only allowed registry. Publishing to it automatically.",
+                        default_registry
+                    ))?;
+                    publish_registry = Some(default_registry.clone());
+                }
+            }
+
+            let reg_name = publish_registry
+                .clone()
+                .unwrap_or_else(|| CRATES_IO_REGISTRY.to_string());
+            if !allowed_registries.contains(&reg_name) {
+                bail!(
+                    "`{}` cannot be published.\n\
+                    The registry `{}` is not listed in the `publish` value in Cargo.toml.",
+                    pkg.name(),
+                    reg_name
+                );
             }
         }
 
-        let reg_name = publish_registry
-            .clone()
-            .unwrap_or_else(|| CRATES_IO_REGISTRY.to_string());
-        if !allowed_registries.contains(&reg_name) {
-            bail!(
-                "`{}` cannot be published.\n\
-                 The registry `{}` is not listed in the `publish` value in Cargo.toml.",
-                pkg.name(),
-                reg_name
-            );
-        }
+        let (registry, _reg_cfg, reg_id) = registry(
+            opts.config,
+            opts.token.clone(),
+            opts.index.clone(),
+            publish_registry,
+            true,
+            !opts.dry_run,
+        )?;
+        verify_dependencies(pkg, &registry, reg_id)?;
+
+        // Prepare a tarball, with a non-suppressible warning if metadata
+        // is missing since this is being put online.
+        let tarball = ops::package_one(
+            &ws,
+            &ops::PackageOpts {
+                config: opts.config,
+                verify: opts.verify,
+                list: false,
+                check_metadata: true,
+                allow_dirty: opts.allow_dirty,
+                to_package: ops::Packages::All,
+                targets: opts.targets.clone(),
+                jobs: opts.jobs,
+                cli_features: cli_features.clone(),
+            },
+        )?
+        .unwrap();
+
+        tarballs.push((pkg, registry, reg_id, tarball));
     }
 
-    let (mut registry, _reg_cfg, reg_id) = registry(
-        opts.config,
-        opts.token.clone(),
-        opts.index.clone(),
-        publish_registry,
-        true,
-        !opts.dry_run,
-    )?;
-    verify_dependencies(pkg, &registry, reg_id)?;
-
-    // Prepare a tarball, with a non-suppressible warning if metadata
-    // is missing since this is being put online.
-    let tarball = ops::package(
-        ws,
-        &ops::PackageOpts {
-            config: opts.config,
-            verify: opts.verify,
-            list: false,
-            check_metadata: true,
-            allow_dirty: opts.allow_dirty,
-            targets: opts.targets.clone(),
-            jobs: opts.jobs,
-            cli_features: opts.cli_features.clone(),
-        },
-    )?
-    .unwrap();
-
     // Upload said tarball to the specified destination
-    opts.config
-        .shell()
-        .status("Uploading", pkg.package_id().to_string())?;
-    transmit(
-        opts.config,
-        pkg,
-        tarball.file(),
-        &mut registry,
-        reg_id,
-        opts.dry_run,
-    )?;
+    for (pkg, mut registry, reg_id, tarball) in tarballs.drain(..) {
+        opts.config
+            .shell()
+            .status("Uploading", pkg.package_id().to_string())?;
+        transmit(
+            opts.config,
+            pkg,
+            tarball.file(),
+            &mut registry,
+            reg_id,
+            opts.dry_run,
+        )?;
+    }
 
     Ok(())
 }
