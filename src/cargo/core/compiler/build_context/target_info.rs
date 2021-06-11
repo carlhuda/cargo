@@ -437,7 +437,9 @@ impl TargetInfo {
         target_triple: &str,
     ) -> CargoResult<(Vec<FileType>, Vec<CrateType>)> {
         match mode {
-            CompileMode::Build => self.calc_rustc_outputs(target_kind, target_triple),
+            CompileMode::Build | CompileMode::Install => {
+                self.calc_rustc_outputs(target_kind, target_triple)
+            }
             CompileMode::Test | CompileMode::Bench => {
                 match self.file_types(&CrateType::Bin, FileFlavor::Normal, target_triple)? {
                     Some(fts) => Ok((fts, Vec::new())),

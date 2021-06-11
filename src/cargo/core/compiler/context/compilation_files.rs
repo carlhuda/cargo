@@ -420,7 +420,8 @@ impl<'a, 'cfg: 'a> CompilationFiles<'a, 'cfg> {
             CompileMode::Test
             | CompileMode::Build
             | CompileMode::Bench
-            | CompileMode::Check { .. } => self.calc_outputs_rustc(unit, bcx)?,
+            | CompileMode::Check { .. }
+            | CompileMode::Install => self.calc_outputs_rustc(unit, bcx)?,
         };
         info!("Target filenames: {:?}", ret);
 
