@@ -1748,7 +1748,7 @@ fn in_workspace() {
             "#,
         )
         .file(
-            "foo/Cargo.toml", 
+            "foo/Cargo.toml",
             r#"
                 [project]
                 name = "foo"
@@ -1756,7 +1756,8 @@ fn in_workspace() {
                 authors = []
                 license = "MIT"
                 description = "foo"
-            "#)
+            "#,
+        )
         .file("foo/src/main.rs", "fn main() {}")
         .file(
             "bar/Cargo.toml",

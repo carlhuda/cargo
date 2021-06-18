@@ -144,23 +144,37 @@ pub fn package_one(ws: &Workspace<'_>, opts: &PackageOpts<'_>) -> CargoResult<Op
     Ok(Some(dst))
 }
 
-pub fn package(ws_root: &Workspace<'_>, opts: &PackageOpts<'_>) -> CargoResult<Vec<Option<FileLock>>> {
-    let pkgs = ws_root.members_with_features(&opts.to_package.to_package_id_specs(ws_root)?, &opts.cli_features)?;
+pub fn package(
+    ws_root: &Workspace<'_>,
+    opts: &PackageOpts<'_>,
+) -> CargoResult<Vec<Option<FileLock>>> {
+    let pkgs = ws_root.members_with_features(
+        &opts.to_package.to_package_id_specs(ws_root)?,
+        &opts.cli_features,
+    )?;
     let mut dsts = Vec::with_capacity(pkgs.len());
 
     for (pkg, cli_features) in pkgs {
-        let ws = Workspace::ephemeral(pkg.clone(), ws_root.config(), Some(ws_root.target_dir()), ws_root.require_optional_deps())?;
-        dsts.push(package_one(&ws, &PackageOpts {
-            config: opts.config,
-            list: opts.list,
-            check_metadata: opts.check_metadata,
-            allow_dirty: opts.allow_dirty,
-            verify: opts.verify,
-            jobs: opts.jobs,
-            to_package: ops::Packages::All,
-            targets: opts.targets.clone(),
-            cli_features: cli_features,
-        })?);
+        let ws = Workspace::ephemeral(
+            pkg.clone(),
+            ws_root.config(),
+            Some(ws_root.target_dir()),
+            ws_root.require_optional_deps(),
+        )?;
+        dsts.push(package_one(
+            &ws,
+            &PackageOpts {
+                config: opts.config,
+                list: opts.list,
+                check_metadata: opts.check_metadata,
+                allow_dirty: opts.allow_dirty,
+                verify: opts.verify,
+                jobs: opts.jobs,
+                to_package: ops::Packages::All,
+                targets: opts.targets.clone(),
+                cli_features: cli_features,
+            },
+        )?);
     }
 
     Ok(dsts)

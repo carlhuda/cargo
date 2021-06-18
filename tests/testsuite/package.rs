@@ -2160,5 +2160,4 @@ See [..]
 
     assert!(p.root().join("target/package/foo-0.0.1.crate").is_file());
     assert!(p.root().join("target/package/bar-0.0.1.crate").is_file());
-
 }

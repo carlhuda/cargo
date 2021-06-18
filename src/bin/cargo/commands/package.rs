@@ -41,7 +41,7 @@ pub fn cli() -> App {
 pub fn exec(config: &mut Config, args: &ArgMatches<'_>) -> CliResult {
     let ws = args.workspace(config)?;
     let specs = args.packages_from_flags()?;
-    
+
     ops::package(
         &ws,
         &PackageOpts {
