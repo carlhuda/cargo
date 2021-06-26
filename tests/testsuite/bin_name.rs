@@ -29,7 +29,7 @@ fn diff_bin_name() {
     
     // a file with name foo should not be created
     let foo_path = p.bin("foo");
-    assert!(foo_path.is_file());
+    assert!(!foo_path.is_file());
     // a file with name bar should be created
     let bar_path = p.bin("bar");
     assert!(bar_path.is_file());
