@@ -52,7 +52,7 @@ fn replace() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [DOWNLOADING] crates ...
 [DOWNLOADED] baz v0.1.0 ([..])
 [COMPILING] bar v0.1.0 ([CWD]/bar)
@@ -99,7 +99,7 @@ fn from_config_without_z() {
         .with_stderr(
             "\
 [WARNING] `[patch]` in cargo config was ignored, the -Zpatch-in-config command-line flag is required
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v0.1.0 ([..])
 [COMPILING] bar v0.1.0
@@ -143,7 +143,7 @@ fn from_config() {
         .masquerade_as_nightly_cargo()
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [COMPILING] bar v0.1.1 ([..])
 [COMPILING] foo v0.0.1 ([CWD])
 [FINISHED] dev [unoptimized + debuginfo] target(s) in [..]
@@ -185,7 +185,7 @@ fn from_config_relative() {
         .masquerade_as_nightly_cargo()
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [COMPILING] bar v0.1.1 ([..])
 [COMPILING] foo v0.0.1 ([CWD])
 [FINISHED] dev [unoptimized + debuginfo] target(s) in [..]
@@ -230,7 +230,7 @@ fn from_config_precedence() {
         .masquerade_as_nightly_cargo()
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [COMPILING] bar v0.1.1 ([..])
 [COMPILING] foo v0.0.1 ([CWD])
 [FINISHED] dev [unoptimized + debuginfo] target(s) in [..]
@@ -270,7 +270,7 @@ fn nonexistent() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [COMPILING] bar v0.1.0 ([CWD]/bar)
 [COMPILING] foo v0.0.1 ([CWD])
 [FINISHED] dev [unoptimized + debuginfo] target(s) in [..]
@@ -365,7 +365,7 @@ fn patch_to_git() {
         .with_stderr(
             "\
 [UPDATING] git repository `file://[..]`
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [COMPILING] bar v0.1.0 (file://[..])
 [COMPILING] foo v0.0.1 ([CWD])
 [FINISHED] dev [unoptimized + debuginfo] target(s) in [..]
@@ -403,7 +403,7 @@ fn unused() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [WARNING] Patch `bar v0.2.0 ([CWD]/bar)` was not used in the crate graph.
 [..]
 [..]
@@ -474,7 +474,7 @@ fn unused_from_config() {
         .masquerade_as_nightly_cargo()
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [WARNING] Patch `bar v0.2.0 ([CWD]/bar)` was not used in the crate graph.
 [..]
 [..]
@@ -548,7 +548,7 @@ fn unused_git() {
         .with_stderr(
             "\
 [UPDATING] git repository `file://[..]`
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [WARNING] Patch `bar v0.2.0 ([..])` was not used in the crate graph.
 [..]
 [..]
@@ -601,7 +601,7 @@ fn add_patch() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v0.1.0 [..]
 [COMPILING] bar v0.1.0
@@ -665,7 +665,7 @@ fn add_patch_from_config() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v0.1.0 [..]
 [COMPILING] bar v0.1.0
@@ -725,7 +725,7 @@ fn add_ignored_patch() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v0.1.0 [..]
 [COMPILING] bar v0.1.0
@@ -859,7 +859,7 @@ fn new_minor() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [COMPILING] bar v0.1.1 [..]
 [COMPILING] foo v0.0.1 ([CWD])
 [FINISHED] dev [unoptimized + debuginfo] target(s) in [..]
@@ -909,7 +909,7 @@ fn transitive_new_minor() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [COMPILING] baz v0.1.1 [..]
 [COMPILING] bar v0.1.0 [..]
 [COMPILING] foo v0.0.1 ([CWD])
@@ -947,7 +947,7 @@ fn new_major() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [COMPILING] bar v0.2.0 [..]
 [COMPILING] foo v0.0.1 ([CWD])
 [FINISHED] dev [unoptimized + debuginfo] target(s) in [..]
@@ -976,7 +976,7 @@ fn new_major() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [DOWNLOADING] crates ...
 [DOWNLOADED] bar v0.2.0 [..]
 [COMPILING] bar v0.2.0
@@ -1028,7 +1028,7 @@ fn transitive_new_major() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [COMPILING] baz v0.2.0 [..]
 [COMPILING] bar v0.1.0 [..]
 [COMPILING] foo v0.0.1 ([CWD])
@@ -1085,7 +1085,7 @@ fn shared_by_transitive() {
         .with_stderr(
             "\
 [UPDATING] git repository `file://[..]`
-[UPDATING] `[ROOT][..]` index
+[UPDATING] `dummy-registry` index
 [COMPILING] baz v0.1.2 [..]
 [COMPILING] bar v0.1.0 [..]
 [COMPILING] foo v0.1.0 ([CWD])
@@ -1807,7 +1807,7 @@ fn update_unused_new_version() {
     p.cargo("build")
         .with_stderr(
             "\
-[UPDATING] `[..]/registry` index
+[UPDATING] `dummy-registry` index
 [COMPILING] bar v0.1.6 ([..]/bar)
 [COMPILING] foo v0.0.1 ([..]/foo)
 [FINISHED] [..]
@@ -1825,7 +1825,7 @@ fn update_unused_new_version() {
     p.cargo("update -p bar")
         .with_stderr(
             "\
-[UPDATING] `[..]/registry` index
+[UPDATING] `dummy-registry` index
 [ADDING] bar v0.1.6 ([..]/bar)
 [REMOVING] bar v0.1.5
 ",
@@ -1837,7 +1837,7 @@ fn update_unused_new_version() {
     p.cargo("update")
         .with_stderr(
             "\
-[UPDATING] `[..]/registry` index
+[UPDATING] `dummy-registry` index
 [ADDING] bar v0.1.6 ([..]/bar)
 [REMOVING] bar v0.1.5
 ",
@@ -1876,14 +1876,14 @@ fn too_many_matches() {
         .with_status(101)
         .with_stderr(
             "\
-[UPDATING] `[..]/alternative-registry` index
+[UPDATING] `alternative` index
 [ERROR] failed to resolve patches for `https://github.com/rust-lang/crates.io-index`
 
 Caused by:
   patch for `bar` in `https://github.com/rust-lang/crates.io-index` failed to resolve
 
 Caused by:
-  patch for `bar` in `registry `[..]/alternative-registry`` resolved to more than one candidate
+  patch for `bar` in `registry `alternative`` resolved to more than one candidate
   Found versions: 0.1.0, 0.1.1
   Update the patch definition to select only one package.
   For example, add an `=` version requirement to the patch definition, such as `version = \"=0.1.1\"`.
@@ -2001,7 +2001,7 @@ fn patch_walks_backwards() {
     p.cargo("check")
         .with_stderr(
             "\
-[UPDATING] `[..]/registry` index
+[UPDATING] `dummy-registry` index
 [CHECKING] bar v0.1.1 ([..]/foo/bar)
 [CHECKING] foo v0.1.0 ([..]/foo)
 [FINISHED] [..]
@@ -2015,7 +2015,7 @@ fn patch_walks_backwards() {
     p.cargo("check")
         .with_stderr(
             "\
-[UPDATING] `[..]/registry` index
+[UPDATING] `dummy-registry` index
 [CHECKING] bar v0.1.0 ([..]/foo/bar)
 [CHECKING] foo v0.1.0 ([..]/foo)
 [FINISHED] [..]
@@ -2053,7 +2053,7 @@ fn patch_walks_backwards_restricted() {
     p.cargo("check")
         .with_stderr(
             "\
-[UPDATING] `[..]/registry` index
+[UPDATING] `dummy-registry` index
 [CHECKING] bar v0.1.1 ([..]/foo/bar)
 [CHECKING] foo v0.1.0 ([..]/foo)
 [FINISHED] [..]
@@ -2123,7 +2123,7 @@ fn patched_dep_new_version() {
     p.cargo("check")
         .with_stderr(
             "\
-[UPDATING] `[..]/registry` index
+[UPDATING] `dummy-registry` index
 [DOWNLOADING] crates ...
 [DOWNLOADED] baz v0.1.0 [..]
 [CHECKING] baz v0.1.0
@@ -2156,9 +2156,9 @@ fn patched_dep_new_version() {
     p.cargo("check")
         .with_stderr(
             "\
-[UPDATING] `[..]/registry` index
+[UPDATING] `dummy-registry` index
 [DOWNLOADING] crates ...
-[DOWNLOADED] baz v0.1.1 (registry `[..]/registry`)
+[DOWNLOADED] baz v0.1.1 (registry `dummy-registry`)
 [CHECKING] baz v0.1.1
 [CHECKING] bar v0.1.0 ([..]/foo/bar)
 [CHECKING] foo v0.1.0 ([..]/foo)
@@ -2200,11 +2200,11 @@ fn patch_update_doesnt_update_other_sources() {
     p.cargo("check")
         .with_stderr_unordered(
             "\
-[UPDATING] `[..]/registry` index
-[UPDATING] `[..]/alternative-registry` index
+[UPDATING] `dummy-registry` index
+[UPDATING] `alternative` index
 [DOWNLOADING] crates ...
-[DOWNLOADED] bar v0.1.0 (registry `[..]/alternative-registry`)
-[CHECKING] bar v0.1.0 (registry `[..]/alternative-registry`)
+[DOWNLOADED] bar v0.1.0 (registry `alternative`)
+[CHECKING] bar v0.1.0 (registry `alternative`)
 [CHECKING] bar v0.1.0 ([..]/foo/bar)
 [CHECKING] foo v0.1.0 ([..]/foo)
 [FINISHED] [..]
@@ -2226,7 +2226,7 @@ fn patch_update_doesnt_update_other_sources() {
     p.cargo("check")
         .with_stderr(
             "\
-[UPDATING] `[..]/registry` index
+[UPDATING] `dummy-registry` index
 [CHECKING] bar v0.1.1 ([..]/foo/bar)
 [CHECKING] foo v0.1.0 ([..]/foo)
 [FINISHED] [..]
@@ -2264,11 +2264,11 @@ fn can_update_with_alt_reg() {
     p.cargo("check")
         .with_stderr(
             "\
-[UPDATING] `[..]/alternative-registry` index
-[UPDATING] `[..]/registry` index
+[UPDATING] `alternative` index
+[UPDATING] `dummy-registry` index
 [DOWNLOADING] crates ...
-[DOWNLOADED] bar v0.1.1 (registry `[..]/alternative-registry`)
-[CHECKING] bar v0.1.1 (registry `[..]/alternative-registry`)
+[DOWNLOADED] bar v0.1.1 (registry `alternative`)
+[CHECKING] bar v0.1.1 (registry `alternative`)
 [CHECKING] foo v0.1.0 ([..]/foo)
 [FINISHED] [..]
 ",
@@ -2284,8 +2284,8 @@ fn can_update_with_alt_reg() {
     p.cargo("update -p bar")
         .with_stderr(
             "\
-[UPDATING] `[..]/alternative-registry` index
-[UPDATING] `[..]/registry` index
+[UPDATING] `alternative` index
+[UPDATING] `dummy-registry` index
 ",
         )
         .run();
@@ -2309,11 +2309,11 @@ fn can_update_with_alt_reg() {
     p.cargo("check")
         .with_stderr(
             "\
-[UPDATING] `[..]/alternative-registry` index
-[UPDATING] `[..]/registry` index
+[UPDATING] `alternative` index
+[UPDATING] `dummy-registry` index
 [DOWNLOADING] crates ...
-[DOWNLOADED] bar v0.1.2 (registry `[..]/alternative-registry`)
-[CHECKING] bar v0.1.2 (registry `[..]/alternative-registry`)
+[DOWNLOADED] bar v0.1.2 (registry `alternative`)
+[CHECKING] bar v0.1.2 (registry `alternative`)
 [CHECKING] foo v0.1.0 ([..]/foo)
 [FINISHED] [..]
 ",
