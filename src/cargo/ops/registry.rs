@@ -57,20 +57,14 @@ pub struct PublishOpts<'cfg> {
     pub cli_features: CliFeatures,
 }
 
-pub fn publish(root_ws: &Workspace<'_>, opts: &PublishOpts<'_>) -> CargoResult<()> {
-    let specs = opts.to_publish.to_package_id_specs(root_ws)?;
-    let mut pkgs = root_ws.members_with_features(&specs, &opts.cli_features)?;
+pub fn publish(ws: &Workspace<'_>, opts: &PublishOpts<'_>) -> CargoResult<()> {
+    let specs = opts.to_publish.to_package_id_specs(ws)?;
+    let mut pkgs = ws.members_with_features(&specs, &opts.cli_features)?;
 
     anyhow::ensure!(pkgs.len() == 1, "can only publish one package at a time.");
 
     let (pkg, cli_features) = pkgs.pop().unwrap();
 
-    let ws = Workspace::ephemeral(
-        pkg.clone(),
-        root_ws.config(),
-        Some(root_ws.target_dir()),
-        root_ws.require_optional_deps(),
-    )?;
     let mut publish_registry = opts.registry.clone();
     if let Some(ref allowed_registries) = *pkg.publish() {
         if publish_registry.is_none() && allowed_registries.len() == 1 {
@@ -115,13 +109,14 @@ pub fn publish(root_ws: &Workspace<'_>, opts: &PublishOpts<'_>) -> CargoResult<(
     // is missing since this is being put online.
     let tarball = ops::package_one(
         &ws,
+        pkg,
         &ops::PackageOpts {
             config: opts.config,
             verify: opts.verify,
             list: false,
             check_metadata: true,
             allow_dirty: opts.allow_dirty,
-            to_package: ops::Packages::All,
+            to_package: ops::Packages::Default,
             targets: opts.targets.clone(),
             jobs: opts.jobs,
             cli_features: cli_features.clone(),
