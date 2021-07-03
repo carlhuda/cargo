@@ -266,6 +266,7 @@ fn clean_bins(
         "autobins",
     );
 
+    // This loop performs basic checks on each of the TomlTarget in `bins`.
     for bin in &bins {
         validate_target_name(bin, "binary", "bin", warnings)?;
 
@@ -301,6 +302,8 @@ fn clean_bins(
 
     validate_unique_names(&bins, "binary")?;
 
+    // TODO: add method to validate unique binary names
+
     let mut result = Vec::new();
     for bin in &bins {
         let path = target_path(bin, &inferred, "bin", package_root, edition, &mut |_| {
@@ -320,9 +323,10 @@ fn clean_bins(
             Ok(path) => path,
             Err(e) => anyhow::bail!("{}", e),
         };
-
+        
         let mut target =
-            Target::bin_target(&bin.name(), path, bin.required_features.clone(), edition);
+            Target::bin_target(&bin.name(), bin.filename.clone(), path, bin.required_features.clone(), edition);
+
         configure(features, bin, &mut target)?;
         result.push(target);
     }

@@ -193,7 +193,10 @@ pub struct Target {
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 struct TargetInner {
     kind: TargetKind,
+    // This is the crate name.
     name: String,
+    // We store the binary name here, if provided.
+    bin_name: Option<String>,
     // Note that the `src_path` here is excluded from the `Hash` implementation
     // as it's absolute currently and is otherwise a little too brittle for
     // causing rebuilds. Instead the hash for the path that we send to the
@@ -350,6 +353,7 @@ compact_debug! {
             [debug_the_fields(
                 kind
                 name
+                bin_name
                 src_path
                 required_features
                 tested
@@ -627,6 +631,7 @@ impl Target {
             inner: Arc::new(TargetInner {
                 kind: TargetKind::Bin,
                 name: String::new(),
+                bin_name: None,
                 src_path,
                 required_features: None,
                 doc: false,
@@ -662,6 +667,7 @@ impl Target {
 
     pub fn bin_target(
         name: &str,
+        bin_name: Option<String>,
         src_path: PathBuf,
         required_features: Option<Vec<String>>,
         edition: Edition,
@@ -670,6 +676,7 @@ impl Target {
         target
             .set_kind(TargetKind::Bin)
             .set_name(name)
+            .set_bin_name(bin_name)
             .set_required_features(required_features)
             .set_doc(true);
         target
@@ -911,9 +918,17 @@ impl Target {
         Arc::make_mut(&mut self.inner).name = name.to_string();
         self
     }
+    pub fn set_bin_name(&mut self, bin_name: Option<String>) -> &mut Target {
+        Arc::make_mut(&mut self.inner).bin_name = bin_name;
+        self
+    }
     pub fn set_required_features(&mut self, required_features: Option<Vec<String>>) -> &mut Target {
         Arc::make_mut(&mut self.inner).required_features = required_features;
         self
+    }
+
+    pub fn get_binary_name(&self) -> Option<String> {
+        self.inner.bin_name.clone()
     }
 
     pub fn description_named(&self) -> String {
