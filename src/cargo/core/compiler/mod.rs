@@ -817,7 +817,15 @@ fn build_base_args(
         // future Cargo session as part of a pipelined compile.
         cmd.arg("--emit=dep-info,metadata,link");
     } else {
-        cmd.arg("--emit=dep-info,link");
+        // Check if we have received a seperate binary name in Cargo manifest.
+        let arg = match unit.target.get_binary_name() {
+            Some(s) => {
+                let bin_path = cx.files().out_dir(unit);
+                format!("--emit=dep-info,link={}/{}", bin_path.to_string_lossy(), s)
+            }
+            _ => "--emit=dep-info,link".to_string(),
+        };
+        cmd.arg(arg);
     }
 
     let prefer_dynamic = (unit.target.for_host() && !unit.target.is_custom_build())
