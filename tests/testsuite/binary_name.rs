@@ -2,7 +2,7 @@ use cargo_test_support::project;
 
 #[cargo_test]
 // This test checks if Cargo produces a binary with the name we provide in `Cargo.toml` in the
-// filename parameter under the `[[bin]]` tag.
+// `filename` parameter under the `[[bin]]` section.
 fn diff_bin_name() {
     // Create the project.
     let p = project()
@@ -28,7 +28,6 @@ fn diff_bin_name() {
         .run();
 
     // Check the name of the binary that cargo has generated.
-    
     // A binary with the name of the crate should NOT be created.
     let foo_path = p.bin("foo");
     assert!(!foo_path.is_file());
