@@ -323,9 +323,14 @@ fn clean_bins(
             Ok(path) => path,
             Err(e) => anyhow::bail!("{}", e),
         };
-        
-        let mut target =
-            Target::bin_target(&bin.name(), bin.filename.clone(), path, bin.required_features.clone(), edition);
+
+        let mut target = Target::bin_target(
+            &bin.name(),
+            bin.filename.clone(),
+            path,
+            bin.required_features.clone(),
+            edition,
+        );
 
         configure(features, bin, &mut target)?;
         result.push(target);

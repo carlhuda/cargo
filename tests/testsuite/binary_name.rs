@@ -20,12 +20,11 @@ fn diff_bin_name() {
                 path = "src/main.rs"
             "#,
         )
-        .file( "src/main.rs", "fn main() { assert!(true) }" )
+        .file("src/main.rs", "fn main() { assert!(true) }")
         .build();
-    
+
     // Run cargo build.
-    p.cargo("build")
-        .run();
+    p.cargo("build").run();
 
     // Check the name of the binary that cargo has generated.
     // A binary with the name of the crate should NOT be created.
