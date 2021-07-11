@@ -90,10 +90,9 @@ impl FileType {
     pub fn output_filename(&self, target: &Target, metadata: Option<&str>) -> String {
         // Check if we have been provided with a seperate filename for the binary in `[[bin]]`
         // section of Cargo.toml.
-        let filename = match target.get_binary_name() {
-            Some(bin_name) => bin_name,
-            None => target.crate_name(),
-        };
+        let filename = target
+            .get_binary_name()
+            .unwrap_or_else(|| target.crate_name());
 
         match metadata {
             Some(metadata) => format!("{}{}-{}{}", self.prefix, filename, metadata, self.suffix),
@@ -108,10 +107,9 @@ impl FileType {
         let name = if self.should_replace_hyphens {
             target.crate_name()
         } else {
-            match target.get_binary_name() {
-                Some(bin_name) => bin_name,
-                None => target.name().to_string(),
-            }
+            target
+                .get_binary_name()
+                .unwrap_or_else(|| target.name().to_string())
         };
         format!("{}{}{}", self.prefix, name, self.suffix)
     }
