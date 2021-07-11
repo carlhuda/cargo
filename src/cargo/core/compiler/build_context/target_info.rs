@@ -88,25 +88,30 @@ pub struct FileType {
 impl FileType {
     /// The filename for this FileType crated by rustc.
     pub fn output_filename(&self, target: &Target, metadata: Option<&str>) -> String {
+        // Check if we have been provided with a seperate filename for the binary in `[[bin]]`
+        // section of Cargo.toml.
+        let filename = match target.get_binary_name() {
+            Some(bin_name) => bin_name,
+            None => target.crate_name(),
+        };
+
         match metadata {
-            Some(metadata) => format!(
-                "{}{}-{}{}",
-                self.prefix,
-                target.crate_name(),
-                metadata,
-                self.suffix
-            ),
-            None => format!("{}{}{}", self.prefix, target.crate_name(), self.suffix),
+            Some(metadata) => format!("{}{}-{}{}", self.prefix, filename, metadata, self.suffix),
+            None => format!("{}{}{}", self.prefix, filename, self.suffix),
         }
     }
 
     /// The filename for this FileType that Cargo should use when "uplifting"
     /// it to the destination directory.
     pub fn uplift_filename(&self, target: &Target) -> String {
+        // for binary crate type, `should_replace_hyphens` will always be false
         let name = if self.should_replace_hyphens {
             target.crate_name()
         } else {
-            target.name().to_string()
+            match target.get_binary_name() {
+                Some(bin_name) => bin_name,
+                None => target.name().to_string(),
+            }
         };
         format!("{}{}{}", self.prefix, name, self.suffix)
     }
