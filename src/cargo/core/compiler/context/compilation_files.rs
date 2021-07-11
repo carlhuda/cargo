@@ -266,7 +266,13 @@ impl<'a, 'cfg: 'a> CompilationFiles<'a, 'cfg> {
         } else {
             ""
         };
-        let name = format!("{}{}{}-{}", prefix, flavor, kind, unit.target.name());
+
+        let filename = match unit.target.get_binary_name() {
+            Some(bin_name) => bin_name,
+            None => unit.target.name().to_string(),
+        };
+
+        let name = format!("{}{}{}-{}", prefix, flavor, kind, filename);
         self.fingerprint_dir(unit).join(name)
     }
 
