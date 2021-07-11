@@ -676,7 +676,7 @@ impl Target {
         target
             .set_kind(TargetKind::Bin)
             .set_name(name)
-            .set_bin_name(bin_name)
+            .set_binary_name(bin_name)
             .set_required_features(required_features)
             .set_doc(true);
         target
@@ -918,7 +918,7 @@ impl Target {
         Arc::make_mut(&mut self.inner).name = name.to_string();
         self
     }
-    pub fn set_bin_name(&mut self, bin_name: Option<String>) -> &mut Target {
+    pub fn set_binary_name(&mut self, bin_name: Option<String>) -> &mut Target {
         Arc::make_mut(&mut self.inner).bin_name = bin_name;
         self
     }
