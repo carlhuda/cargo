@@ -226,14 +226,20 @@ fn rustc(cx: &mut Context<'_, '_>, unit: &Unit, exec: &Arc<dyn Executor>) -> Car
     // don't pass the `-l` flags.
     let pass_l_flag = unit.target.is_lib() || !unit.pkg.targets().iter().any(|t| t.is_lib());
 
+    // Check if we have a seperate binary name `[[bin]]` section of in Cargo.toml
+    let dep_info_filename = match unit.target.get_binary_name() {
+        Some(bin_name) => bin_name,
+        None => unit.target.crate_name(),
+    };
+
     let dep_info_name = if cx.files().use_extra_filename(unit) {
         format!(
             "{}-{}.d",
-            unit.target.crate_name(),
+            dep_info_filename,
             cx.files().metadata(unit)
         )
     } else {
-        format!("{}.d", unit.target.crate_name())
+        format!("{}.d", dep_info_filename)
     };
     let rustc_dep_info_loc = root.join(dep_info_name);
     let dep_info_loc = fingerprint::dep_info_loc(cx, unit);
@@ -831,13 +837,16 @@ fn build_base_args(
         cmd.arg("--emit=dep-info,metadata,link");
     } else {
         // Check if we have received a seperate binary name in Cargo manifest.
-        let arg = match unit.target.get_binary_name() {
-            Some(s) => {
-                let bin_path = cx.files().out_dir(unit);
-                format!("--emit=dep-info,link={}/{}", bin_path.to_string_lossy(), s)
-            }
-            _ => "--emit=dep-info,link".to_string(),
-        };
+
+        // Code commented by Tejas | whereistejas
+        // let arg = match unit.target.get_binary_name() {
+        //     Some(s) => {
+        //         let bin_path = cx.files().out_dir(unit);
+        //         format!("--emit=dep-info,link={}/{}", bin_path.to_string_lossy(), s)
+        //     }
+        //     _ => "--emit=dep-info,link".to_string(),
+        // };
+        let arg = "--emit=dep-info,link".to_string();
         cmd.arg(arg);
     }
 
