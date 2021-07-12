@@ -68,7 +68,7 @@ use std::time::Instant;
 use self::ConfigValue as CV;
 use crate::core::compiler::rustdoc::RustdocExternMap;
 use crate::core::shell::Verbosity;
-use crate::core::{features, CliUnstable, Shell, SourceId, Workspace};
+use crate::core::{features, CliUnstable, GitReference, Shell, SourceId, Workspace};
 use crate::ops;
 use crate::util::errors::CargoResult;
 use crate::util::toml as cargo_toml;
@@ -1309,6 +1309,42 @@ impl Config {
         } else {
             bail!("no index found for registry: `{}`", registry);
         }
+    }
+
+    /// Gets the Git reference corresponding to the optional `branch` key of a
+    /// given `registry`'s source ID.
+    ///
+    /// [`GitReference::DefaultBranch`] is used by default when the key is not
+    /// present or if the configuration read yielded an error.
+    pub fn get_registry_branch_from_id(&self, registry: &SourceId) -> CargoResult<GitReference> {
+        // HACK: attempt to retrieve the registry's name by finding where is its index.
+        self.get_registry_branch(&match registry.name() {
+            Some(name) => name.clone(),
+            None => match self.get_table(&ConfigKey::from_str("registries"))? {
+                None => return Ok(GitReference::DefaultBranch),
+                Some(regs) => match regs.val.iter().find(|&(_, val)| {
+                    val.table("").unwrap().0.get("index").map_or(false, |idx| {
+                        idx.string("").unwrap().0 == registry.url().as_str()
+                    })
+                }) {
+                    None => return Ok(GitReference::DefaultBranch),
+                    Some((name, _)) => name.clone(),
+                },
+            },
+        })
+    }
+
+    /// Gets the Git reference corresponding to the optional `branch` key of a
+    /// given `registry`'s name.
+    ///
+    /// [`GitReference::DefaultBranch`] is used by default when the key is not
+    /// present or if the configuration read yielded an error.
+    pub fn get_registry_branch(&self, registry: &str) -> CargoResult<GitReference> {
+        Ok(self
+            .get_string(&format!("registries.{}.branch", registry))?
+            .map_or(GitReference::DefaultBranch, |branch| {
+                GitReference::Branch(branch.val)
+            }))
     }
 
     /// Returns an error if `registry.index` is set.

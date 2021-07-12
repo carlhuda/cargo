@@ -214,6 +214,14 @@ impl SourceId {
         &self.inner.canonical_url
     }
 
+    /// Gets this source's name if it exists.
+    ///
+    /// It can exist for alternative registries, but it is not always set when
+    /// it is not known.
+    pub fn name(&self) -> &Option<String> {
+        &self.inner.name
+    }
+
     pub fn display_index(self) -> String {
         if self.is_default_registry() {
             "crates.io index".to_string()
@@ -287,6 +295,14 @@ impl SourceId {
                 self,
                 yanked_whitelist,
                 config,
+                if config.cli_unstable().alternative_branches {
+                    config
+                        .cli_unstable()
+                        .fail_if_stable_opt("alternative-branches", 0)?;
+                    config.get_registry_branch_from_id(&self)?
+                } else {
+                    GitReference::DefaultBranch
+                },
             ))),
             SourceKind::LocalRegistry => {
                 let path = match self.inner.url.to_file_path() {
