@@ -244,6 +244,15 @@ fn rustc(cx: &mut Context<'_, '_>, unit: &Unit, exec: &Arc<dyn Executor>) -> Car
     if cx.bcx.config.cli_unstable().binary_dep_depinfo {
         rustc.arg("-Z").arg("binary-dep-depinfo");
     }
+    
+    if unit.target.get_binary_name().is_some() {
+        let mut filepath = String::from("--emit=link=");
+        for output in outputs.iter() {
+            filepath.push_str(&output.path.to_string_lossy());
+        }
+        rustc.arg(filepath);
+    }
+
     let mut output_options = OutputOptions::new(cx, unit);
     let package_id = unit.pkg.package_id();
     let target = Target::clone(&unit.target);
@@ -832,18 +841,7 @@ fn build_base_args(
         // future Cargo session as part of a pipelined compile.
         cmd.arg("--emit=dep-info,metadata,link");
     } else {
-        // Check if we have received a seperate binary name in Cargo manifest.
-
-        // Code commented by Tejas | whereistejas
-        // let arg = match unit.target.get_binary_name() {
-        //     Some(s) => {
-        //         let bin_path = cx.files().out_dir(unit);
-        //         format!("--emit=dep-info,link={}/{}", bin_path.to_string_lossy(), s)
-        //     }
-        //     _ => "--emit=dep-info,link".to_string(),
-        // };
-        let arg = "--emit=dep-info,link".to_string();
-        cmd.arg(arg);
+        cmd.arg("--emit=dep-info,link");
     }
 
     let prefer_dynamic = (unit.target.for_host() && !unit.target.is_custom_build())
