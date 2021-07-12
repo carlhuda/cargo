@@ -23,11 +23,13 @@
 //!       repeats until the queue is empty.
 
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::ffi::OsString;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use crate::core::compiler::unit_dependencies::build_unit_dependencies;
 use crate::core::compiler::unit_graph::{self, UnitDep, UnitGraph};
+use crate::core::compiler::Layout;
 use crate::core::compiler::{standard_lib, TargetInfo};
 use crate::core::compiler::{BuildConfig, BuildContext, Compilation, Context};
 use crate::core::compiler::{CompileKind, CompileMode, CompileTarget, RustcTargetData, Unit};
@@ -76,6 +78,9 @@ pub struct CompileOptions {
     /// Whether the `--document-private-items` flags was specified and should
     /// be forwarded to `rustdoc`.
     pub rustdoc_document_private_items: bool,
+    /// Whether the `--scrape-examples` flag was specified and build flags for
+    /// examples should be forwarded to `rustdoc`.
+    pub rustdoc_scrape_examples: bool,
     /// Whether the build process should check the minimum Rust version
     /// defined in the cargo metadata for a crate.
     pub honor_rust_version: bool,
@@ -94,12 +99,13 @@ impl<'a> CompileOptions {
             target_rustc_args: None,
             local_rustdoc_args: None,
             rustdoc_document_private_items: false,
+            rustdoc_scrape_examples: false,
             honor_rust_version: true,
         })
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Packages {
     Default,
     All,
@@ -334,6 +340,7 @@ pub fn create_bcx<'a, 'cfg>(
         ref target_rustc_args,
         ref local_rustdoc_args,
         rustdoc_document_private_items,
+        rustdoc_scrape_examples,
         honor_rust_version,
     } = *options;
     let config = ws.config();
@@ -558,8 +565,12 @@ pub fn create_bcx<'a, 'cfg>(
                 extra_args_name
             );
         }
-        extra_compiler_args.insert(units[0].clone(), args);
+        extra_compiler_args.insert(
+            units[0].clone(),
+            args.into_iter().map(OsString::from).collect::<Vec<_>>(),
+        );
     }
+
     for unit in &units {
         if unit.mode.is_doc() || unit.mode.is_doc_test() {
             let mut extra_args = local_rustdoc_args.clone();
@@ -577,7 +588,68 @@ pub fn create_bcx<'a, 'cfg>(
                 extra_compiler_args
                     .entry(unit.clone())
                     .or_default()
-                    .extend(args);
+                    .extend(args.into_iter().map(OsString::from));
+            }
+        }
+    }
+
+    if rustdoc_scrape_examples {
+        let compile_mode = CompileMode::Doc { deps: false };
+        let mut example_compile_opts = CompileOptions::new(ws.config(), compile_mode)?;
+        example_compile_opts.cli_features = options.cli_features.clone();
+        example_compile_opts.build_config.mode = compile_mode;
+        example_compile_opts.spec = Packages::All;
+        example_compile_opts.filter = CompileFilter::Only {
+            all_targets: false,
+            lib: LibRule::False,
+            bins: FilterRule::none(),
+            examples: FilterRule::All,
+            benches: FilterRule::none(),
+            tests: FilterRule::none(),
+        };
+        example_compile_opts.rustdoc_scrape_examples = false;
+
+        let exec: Arc<dyn Executor> = Arc::new(DefaultExecutor);
+        let interner = UnitInterner::new();
+        let mut bcx = create_bcx(ws, &example_compile_opts, &interner)?;
+        let dest = bcx.profiles.get_dir_name();
+        let paths = {
+            // FIXME(wcrichto): is there a better place to store these files?
+            let layout = Layout::new(ws, None, &dest)?;
+            let output_dir = layout.prepare_tmp()?;
+            bcx.roots
+                .iter()
+                .map(|unit| output_dir.join(format!("{}-calls.json", unit.buildkey())))
+                .collect::<Vec<_>>()
+        };
+
+        for (path, unit) in paths.iter().zip(bcx.roots.iter()) {
+            bcx.extra_compiler_args
+                .entry(unit.clone())
+                .or_insert_with(Vec::new)
+                .extend_from_slice(&[
+                    "-Zunstable-options".into(),
+                    "--scrape-examples".into(),
+                    path.clone().into_os_string(),
+                ]);
+        }
+
+        let cx = Context::new(&bcx)?;
+        cx.compile(&exec)?;
+
+        let args = paths
+            .into_iter()
+            .map(|path| vec!["--with-examples".into(), path.into_os_string()].into_iter())
+            .flatten()
+            .chain(vec!["-Zunstable-options".into()].into_iter())
+            .collect::<Vec<_>>();
+
+        for unit in unit_graph.keys() {
+            if unit.mode.is_doc() && ws.is_member(&unit.pkg) {
+                extra_compiler_args
+                    .entry(unit.clone())
+                    .or_default()
+                    .extend(args.clone());
             }
         }
     }
