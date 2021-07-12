@@ -90,13 +90,18 @@ impl FileType {
     pub fn output_filename(&self, target: &Target, metadata: Option<&str>) -> String {
         // Check if we have been provided with a seperate filename for the binary in `[[bin]]`
         // section of Cargo.toml.
-        let filename = target
-            .get_binary_name()
-            .unwrap_or_else(|| target.crate_name());
+        // let filename = target
+        //     .get_binary_name()
+        //     .unwrap_or_else(|| target.crate_name());
+
+        // match metadata {
+        //     Some(metadata) => format!("{}{}-{}{}", self.prefix, filename, metadata, self.suffix),
+        //     None => format!("{}{}{}", self.prefix, filename, self.suffix),
+        // }
 
         match metadata {
-            Some(metadata) => format!("{}{}-{}{}", self.prefix, filename, metadata, self.suffix),
-            None => format!("{}{}{}", self.prefix, filename, self.suffix),
+            Some(metadata) => format!("{}{}-{}{}", self.prefix, target.crate_name(), metadata, self.suffix),
+            None => format!("{}{}{}", self.prefix, target.crate_name(), self.suffix),
         }
     }
 
