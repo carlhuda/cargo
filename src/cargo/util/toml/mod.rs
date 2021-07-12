@@ -1922,6 +1922,8 @@ struct TomlTarget {
     crate_type2: Option<Vec<String>>,
 
     path: Option<PathValue>,
+    // This parameter will store the name we want to give our binary.
+    filename: Option<String>,
     test: Option<bool>,
     doctest: Option<bool>,
     bench: Option<bool>,

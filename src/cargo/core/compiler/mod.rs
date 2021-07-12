@@ -235,6 +235,7 @@ fn rustc(cx: &mut Context<'_, '_>, unit: &Unit, exec: &Arc<dyn Executor>) -> Car
     } else {
         format!("{}.d", unit.target.crate_name())
     };
+
     let rustc_dep_info_loc = root.join(dep_info_name);
     let dep_info_loc = fingerprint::dep_info_loc(cx, unit);
 
@@ -242,6 +243,15 @@ fn rustc(cx: &mut Context<'_, '_>, unit: &Unit, exec: &Arc<dyn Executor>) -> Car
     if cx.bcx.config.cli_unstable().binary_dep_depinfo {
         rustc.arg("-Z").arg("binary-dep-depinfo");
     }
+
+    if unit.target.get_binary_name().is_some() {
+        let mut filepath = String::from("--emit=link=");
+        for output in outputs.iter() {
+            filepath.push_str(&output.path.to_string_lossy());
+        }
+        rustc.arg(filepath);
+    }
+
     let mut output_options = OutputOptions::new(cx, unit);
     let package_id = unit.pkg.package_id();
     let target = Target::clone(&unit.target);

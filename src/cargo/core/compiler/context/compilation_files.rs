@@ -266,6 +266,7 @@ impl<'a, 'cfg: 'a> CompilationFiles<'a, 'cfg> {
         } else {
             ""
         };
+
         let name = format!("{}{}{}-{}", prefix, flavor, kind, unit.target.name());
         self.fingerprint_dir(unit).join(name)
     }
