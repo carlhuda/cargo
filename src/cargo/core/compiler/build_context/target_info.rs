@@ -89,7 +89,13 @@ impl FileType {
     /// The filename for this FileType crated by rustc.
     pub fn output_filename(&self, target: &Target, metadata: Option<&str>) -> String {
         match metadata {
-            Some(metadata) => format!("{}{}-{}{}", self.prefix, target.crate_name(), metadata, self.suffix),
+            Some(metadata) => format!(
+                "{}{}-{}{}",
+                self.prefix,
+                target.crate_name(),
+                metadata,
+                self.suffix
+            ),
             None => format!("{}{}{}", self.prefix, target.crate_name(), self.suffix),
         }
     }

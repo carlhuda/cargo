@@ -227,7 +227,11 @@ fn rustc(cx: &mut Context<'_, '_>, unit: &Unit, exec: &Arc<dyn Executor>) -> Car
     let pass_l_flag = unit.target.is_lib() || !unit.pkg.targets().iter().any(|t| t.is_lib());
 
     let dep_info_name = if cx.files().use_extra_filename(unit) {
-        format!("{}-{}.d", unit.target.crate_name(), cx.files().metadata(unit))
+        format!(
+            "{}-{}.d",
+            unit.target.crate_name(),
+            cx.files().metadata(unit)
+        )
     } else {
         format!("{}.d", unit.target.crate_name())
     };
@@ -239,7 +243,7 @@ fn rustc(cx: &mut Context<'_, '_>, unit: &Unit, exec: &Arc<dyn Executor>) -> Car
     if cx.bcx.config.cli_unstable().binary_dep_depinfo {
         rustc.arg("-Z").arg("binary-dep-depinfo");
     }
-    
+
     if unit.target.get_binary_name().is_some() {
         let mut filepath = String::from("--emit=link=");
         for output in outputs.iter() {
