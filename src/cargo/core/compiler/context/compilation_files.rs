@@ -267,13 +267,6 @@ impl<'a, 'cfg: 'a> CompilationFiles<'a, 'cfg> {
             ""
         };
 
-        // let filename = unit
-        //     .target
-        //     .get_binary_name()
-        //     .unwrap_or_else(|| unit.target.name().to_string());
-
-        // let name = format!("{}{}{}-{}", prefix, flavor, kind, filename);
-
         let name = format!("{}{}{}-{}", prefix, flavor, kind, unit.target.name());
         self.fingerprint_dir(unit).join(name)
     }

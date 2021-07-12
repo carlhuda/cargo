@@ -226,18 +226,6 @@ fn rustc(cx: &mut Context<'_, '_>, unit: &Unit, exec: &Arc<dyn Executor>) -> Car
     // don't pass the `-l` flags.
     let pass_l_flag = unit.target.is_lib() || !unit.pkg.targets().iter().any(|t| t.is_lib());
 
-    // Check if we have a seperate binary name `[[bin]]` section of in Cargo.toml
-    // let dep_info_filename = unit
-    //     .target
-    //     .get_binary_name()
-    //     .unwrap_or_else(|| unit.target.crate_name());
-
-    // let dep_info_name = if cx.files().use_extra_filename(unit) {
-    //     format!("{}-{}.d", dep_info_filename, cx.files().metadata(unit))
-    // } else {
-    //     format!("{}.d", dep_info_filename)
-    // };
-
     let dep_info_name = if cx.files().use_extra_filename(unit) {
         format!("{}-{}.d", unit.target.crate_name(), cx.files().metadata(unit))
     } else {
