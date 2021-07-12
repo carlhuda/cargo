@@ -151,6 +151,8 @@ pub enum CompileMode {
     Doctest,
     /// A marker for Units that represent the execution of a `build.rs` script.
     RunCustomBuild,
+    /// Building and installing a binary target
+    Install,
 }
 
 impl ser::Serialize for CompileMode {
@@ -167,6 +169,7 @@ impl ser::Serialize for CompileMode {
             Doc { .. } => "doc".serialize(s),
             Doctest => "doctest".serialize(s),
             RunCustomBuild => "run-custom-build".serialize(s),
+            Install => "install".serialize(s),
         }
     }
 }

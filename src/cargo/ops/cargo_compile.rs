@@ -344,7 +344,8 @@ pub fn create_bcx<'a, 'cfg>(
         | CompileMode::Build
         | CompileMode::Check { .. }
         | CompileMode::Bench
-        | CompileMode::RunCustomBuild => {
+        | CompileMode::RunCustomBuild
+        | CompileMode::Install => {
             if std::env::var("RUST_FLAGS").is_ok() {
                 config.shell().warn(
                     "Cargo does not read `RUST_FLAGS` environment variable. Did you mean `RUSTFLAGS`?",
@@ -742,17 +743,18 @@ impl CompileFilter {
         match mode {
             CompileMode::Test | CompileMode::Doctest | CompileMode::Bench => true,
             CompileMode::Check { test: true } => true,
-            CompileMode::Build | CompileMode::Doc { .. } | CompileMode::Check { test: false } => {
-                match *self {
-                    CompileFilter::Default { .. } => false,
-                    CompileFilter::Only {
-                        ref examples,
-                        ref tests,
-                        ref benches,
-                        ..
-                    } => examples.is_specific() || tests.is_specific() || benches.is_specific(),
-                }
-            }
+            CompileMode::Build
+            | CompileMode::Doc { .. }
+            | CompileMode::Check { test: false }
+            | CompileMode::Install => match *self {
+                CompileFilter::Default { .. } => false,
+                CompileFilter::Only {
+                    ref examples,
+                    ref tests,
+                    ref benches,
+                    ..
+                } => examples.is_specific() || tests.is_specific() || benches.is_specific(),
+            },
             CompileMode::RunCustomBuild => panic!("Invalid mode"),
         }
     }
@@ -1343,6 +1345,7 @@ fn filter_default_targets(targets: &[Target], mode: CompileMode) -> Vec<&Target>
                 .collect()
         }
         CompileMode::Doctest | CompileMode::RunCustomBuild => panic!("Invalid mode {:?}", mode),
+        CompileMode::Install => targets.iter().filter(|t| t.is_bin()).collect(),
     }
 }
 

@@ -161,7 +161,9 @@ impl<'cfg> Timings<'cfg> {
         if !self.enabled {
             return;
         }
-        let mut target = if unit.target.is_lib() && unit.mode == CompileMode::Build {
+        let mut target = if unit.target.is_lib()
+            && matches!(unit.mode, CompileMode::Build | CompileMode::Install)
+        {
             // Special case for brevity, since most dependencies hit
             // this path.
             "".to_string()
@@ -177,6 +179,7 @@ impl<'cfg> Timings<'cfg> {
             CompileMode::Doc { .. } => target.push_str(" (doc)"),
             CompileMode::Doctest => target.push_str(" (doc test)"),
             CompileMode::RunCustomBuild => target.push_str(" (run)"),
+            CompileMode::Install => target.push_str(" (install)"),
         }
         let unit_time = UnitTime {
             unit,

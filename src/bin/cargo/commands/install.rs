@@ -129,7 +129,7 @@ pub fn exec(config: &mut Config, args: &ArgMatches<'_>) -> CliResult {
 
     let mut compile_opts = args.compile_options(
         config,
-        CompileMode::Build,
+        CompileMode::Install,
         workspace.as_ref(),
         ProfileChecking::Checked,
     )?;
